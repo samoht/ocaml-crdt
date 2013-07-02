@@ -1,0 +1,1 @@
+Conflict-free Replicated Datatypes implementation, following the approach described in http://hal.inria.fr/inria-00609399/.

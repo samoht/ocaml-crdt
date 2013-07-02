@@ -1,0 +1,4 @@
+begin program "crdt-test"
+  files = [ "main.ml" ]
+  requires = [ "crdt" ]
+end

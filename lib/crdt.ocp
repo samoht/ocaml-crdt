@@ -1,0 +1,9 @@
+begin library "crdt"
+  files  = [
+    "dclock.ml"
+    "dcounter.ml"
+    "dint.ml"
+    "dset.ml"
+    "dgraph.ml"
+  ]
+end
