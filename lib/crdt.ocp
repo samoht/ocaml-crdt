@@ -4,6 +4,7 @@ begin library "crdt"
     "CRDT_clock.ml"
     "CRDT_counter.ml"
     "CRDT_set.ml"
+    "CRDT_map.ml"
     "CRDT.ml"
   ]
   requires = [ "core" ]

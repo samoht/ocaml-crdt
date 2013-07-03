@@ -19,19 +19,19 @@ let list f l =
   let s = List.map f l in
   Printf.sprintf "{ %s }" (String.concat " " s)
 
-module S = struct
+module MyString = struct
   type t = string
   let compare = String.compare
   let to_string x = x
 end
 
 module Foo = struct
-  include S
+  include MyString
   let me = "foo"
 end
 
 module Bar = struct
-  include S
+  include MyString
   let me = "bar"
 end
 
@@ -161,9 +161,22 @@ module SetTest = struct
 
 end
 
+module MapTest = struct
+
+  let name = "map"
+
+  module Foo = CRDT.Map.Make(Foo)(MyString)(CounterTest.Foo)
+  module Bar = CRDT.Map.Make(Bar)(MyString)(CounterTest.Bar)
+
+  let run () =
+    ()
+end
+
 let _ =
   ClockTest     .run ();
   AddCounterTest.run ();
   CounterTest   .run ();
-  SetTest       .run ()
+  SetTest       .run ();
+  MapTest       .run ()
+
 ;;

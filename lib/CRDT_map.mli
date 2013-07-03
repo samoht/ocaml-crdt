@@ -14,12 +14,26 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-(** Entry-point of the library. *)
+(** Distributed maps. *)
 
- module Clock = CRDT_clock
+open CRDT_types
 
-module Counter = CRDT_counter
+module type S = sig
+  type key
+  type value
+  module Value: MERGEABLE with type t := value
+  module Map: Map.S with type key := key
+  type map = Value.contents Map.t
+  include MERGEABLE with type contents := map
 
-module Set = CRDT_set
+  (** Partial implementation of the [Map.S] interface. TODO: implement
+      the remaining functions. *)
+  val empty: t
+  val is_empty: t -> bool
+  val mem: key -> t -> bool
+  val add: key -> value -> t -> t
+  val remove: key -> t -> t
+  val bindings: t -> (key * Value.contents) list
+end
 
-module Map = CRDT_map
+module Make (A: ACTOR) (Key: COMPARABLE) (Value: MERGEABLE): S
