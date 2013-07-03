@@ -14,16 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-(** Vector clock implementation, based on a abstract representation of
-    actors. *)
-
-(** The implementation use functional Map over abstract actors so I
-    don't expect it to be very efficient. It's more a proof of concept for
-    now on. *)
-
-(** Exception raised when operation with wrong ownership are
-    executed. *)
-exception Bad_owner
+(** Base signatures. *)
 
 (** Comparable objects are ordered and printable *)
 module type COMPARABLE = sig
@@ -31,11 +22,22 @@ module type COMPARABLE = sig
   val to_string: t -> string
 end
 
+(** Abstract actors are comparable and have a default elements. *)
+module type ACTOR = sig
+  include COMPARABLE
+  val me: t
+end
 
 module type MERGEABLE = sig
 
-  (** Abstract type for mergeable objects. *)
+  (** The type type of mergeable objects. *)
   type t
+
+  (** The type of contents stored in mergeable objects. *)
+  type contents
+
+  (** Get the contents of an object. *)
+  val contents: t -> contents
 
   (** Pretty-printing. *)
   val to_string: t -> string
@@ -44,41 +46,16 @@ module type MERGEABLE = sig
       same actor, otherwise [Bad_owner] is raised. *)
   val merge: t -> t -> t
 
-  (** Abstract type for actors. *)
-  type actor
-
   (** Create an empty object, owned by the given actor. *)
-  val create: actor -> t
+  val empty: t
 
-  (** Change the owner of a given object. *)
-  val own: actor -> t -> t
-
-end
-
-module type S = sig
-
-  (** Vector clocks are mergeable *)
-  include MERGEABLE
-
-  (** Increment the clock. *)
-  val incr: t -> t
-
-  (** Compare two vector clocks. Return [None] if their are not
-      comparable. Raise [Bad_owner] if the clocks do not have the same
-      owner. *)
-  val compare: t -> t -> int option
-
-  (** Get the local value associated to a clock. *)
-  val value: t -> int
-
-  (** Fold over the component of the clock. *)
-  val fold: (actor -> int -> 'a -> 'a) -> t -> 'a -> 'a
+  (** Test wheter an object is actually empty and can be safely
+      forgotten by the system. *)
+  val is_empty: t -> bool
 
 end
 
-(** Vector clock builder *)
-module Make(A: COMPARABLE): S
-  with type actor = A.t
-
-(** Vector clocks where actors are identified by a string *)
-module StringActor: S with type actor = string
+module ME = struct
+  type t = string
+  let compare = String.compare
+end

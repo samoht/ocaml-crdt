@@ -14,38 +14,50 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
+open CRDT_types
+
 module type ADD = sig
-  include Vclock.MERGEABLE
-  val value: t -> int
+  include MERGEABLE with type contents = int
+  val add: t -> int -> t
   val incr: t -> t
 end
 
-module Add(A: Vclock.COMPARABLE) = struct
+module Add(A: ACTOR): ADD = struct
 
-  include Vclock.Make(A)
+  module Clock = CRDT_clock.Make(A)
 
-  let value t =
-    fold (fun _ -> (+)) t 0
+  type t = Clock.t
+
+  type contents = int
+
+  let fold = Clock.fold
+
+  let empty = Clock.empty
+
+  let is_empty = Clock.is_empty
+
+  let incr = Clock.incr
+
+  let add = Clock.add
+
+  let merge = Clock.merge
+
+  let contents t =
+    fold (+) t 0
 
   let to_string t =
-    string_of_int (value t)
+    string_of_int (contents t)
 
 end
-
-module AddStringActor = Add(struct
-    type t = string
-    let compare = String.compare
-    let to_string x = x
-  end)
 
 module type S = sig
   include ADD
   val decr: t -> t
+  val add: t -> int -> t
+  val sub: t -> int -> t
 end
 
-module Make(A: Vclock.COMPARABLE) = struct
-
-  type actor = A.t
+module Make(A: ACTOR): S = struct
 
   module C = Add(A)
 
@@ -54,13 +66,12 @@ module Make(A: Vclock.COMPARABLE) = struct
     decr: C.t;
   }
 
-  let create h =
-    { incr = C.create h; decr = C.create h }
-
-  let own me t = {
-    incr = C.own me t.incr;
-    decr = C.own me t.decr;
+  let empty = {
+    incr = C.empty;
+    decr = C.empty;
   }
+
+  type contents = int
 
   let incr t =
     { t with incr = C.incr t.incr }
@@ -68,22 +79,37 @@ module Make(A: Vclock.COMPARABLE) = struct
   let decr t =
     { t with decr = C.incr t.decr }
 
-  let value t =
-    let incr = C.value t.incr in
-    let decr = C.value t.decr in
+  let contents t =
+    let incr = C.contents t.incr in
+    let decr = C.contents t.decr in
     incr - decr
+
+  let is_empty t =
+    contents t = 0
 
   let merge t1 t2 =
     { incr = C.merge t1.incr t2.incr;
       decr = C.merge t1.decr t2.decr; }
 
   let to_string t =
-    string_of_int (value t)
+    Printf.sprintf "[%d|%s|%s]"
+      (contents t)
+      (C.to_string t.incr)
+      (C.to_string t.decr)
+
+  let add t i =
+    if i = 0 then t
+    else if i > 0 then
+      { t with incr = C.add t.incr i }
+    else
+      { t with decr = C.add t.decr i }
+
+  let sub t i =
+    if i = 0 then t
+    else if i < 0 then
+      { t with incr = C.add t.incr i }
+    else
+      { t with decr = C.add t.decr i }
+
 
 end
-
-module StringActor = Make(struct
-    type t = string
-    let compare = String.compare
-    let to_string x = x
-  end)

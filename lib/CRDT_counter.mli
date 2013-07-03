@@ -16,6 +16,8 @@
 
 (** Distributed counters. *)
 
+open CRDT_types
+
 (** Distributed counters can be used by a collection of actor to
     concurrently update a given counter. This module defines two
     functors, abstracted over the type of actors. *)
@@ -27,10 +29,11 @@
 module type ADD = sig
 
   (** Additive counters are mergeable *)
-  include Vclock.MERGEABLE
+  include MERGEABLE with type contents = int
 
-  (** Get the counter global value. *)
-  val value: t -> int
+  (** Add increments to a counter. Do nothing if the increment is
+      negative or null. *)
+  val add: t -> int -> t
 
   (** And they support only increment operations. *)
   val incr: t -> t
@@ -38,7 +41,7 @@ module type ADD = sig
 end
 
 (** Functor to build an additive counter. *)
-module Add(A: Vclock.COMPARABLE): ADD with type actor = A.t
+module Add(A: ACTOR): ADD
 
 (** Proper counters support increment and decrement operations. They
     are implemented as two vector clocks, counting each operation
@@ -52,12 +55,13 @@ module type S = sig
   (** But they also support decrement operations. *)
   val decr: t -> t
 
+  (** The addition will work with the full range of integers. *)
+  val add: t -> int -> t
+
+  (** Substraction. *)
+  val sub: t -> int -> t
+
 end
 
-module Make(A: Vclock.COMPARABLE): S with type actor = A.t
-
-(** Additive counters with string actors. *)
-module AddStringActor: ADD with type actor = string
-
-(** Proper counters with string actors. *)
-module StringActor: S with type actor = string
+(** Build a counter from an abstract actor description. *)
+module Make(A: ACTOR): S

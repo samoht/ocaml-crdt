@@ -1,9 +1,10 @@
 begin library "crdt"
-  files  = [
-    "vclock.ml"
-    "dcounter.ml"
-    "dset.ml"
-    "dgraph.ml"
+  files = [
+    "CRDT_types.ml"
+    "CRDT_clock.ml"
+    "CRDT_counter.ml"
+    "CRDT_set.ml"
+    "CRDT.ml"
   ]
   requires = [ "core" ]
 end
