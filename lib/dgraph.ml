@@ -1,6 +1,6 @@
 (* XXX: WIP *)
 
-module Make (A: Dclock.OrderedType) (Vertex: Dclock.OrderedType) = struct
+module Make (A: Vclock.COMPARABLE) (Vertex: Vclock.COMPARABLE) = struct
 
   module VertexSet = Dset.Make(A)(Vertex)
 

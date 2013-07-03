@@ -14,41 +14,35 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-module type OrderedType = sig
-  type t
-  val compare: t -> t -> int
+exception Bad_owner
+
+module type COMPARABLE = sig
+  include Map.OrderedType
   val to_string: t -> string
+end
+
+module type MERGEABLE = sig
+  type t
+  val to_string: t -> string
+  val merge: t -> t -> t
+  type actor
+  val create: actor -> t
+  val own: actor -> t -> t
 end
 
 module type S = sig
-
-  type t
-
+  include MERGEABLE
   val incr: t -> t
-
-  val merge: local:t -> remote:t -> t
-
-  val to_string: t -> string
-
-  type actor
-
-  val create: actor -> t
-
-  val own: actor -> t -> t
-
+  val compare: t -> t -> int option
   val value: t -> int
-
   val fold: (actor -> int -> 'a -> 'a) -> t -> 'a -> 'a
-
 end
 
-module Make (A: OrderedType) = struct
+module Make (A: COMPARABLE) = struct
 
   module HMap = Map.Make(A)
 
   type actor = A.t
-
-  type elt = int
 
   type vector = int HMap.t
 
@@ -80,7 +74,8 @@ module Make (A: OrderedType) = struct
     try HMap.find t.me t.vector
     with Not_found -> 0
 
-  let merge ~local:t1 ~remote:t2 =
+  let merge t1 t2 =
+    if t1.me <> t2.me then raise Bad_owner;
     let vector =
       HMap.fold (fun h i1 t2 ->
           try
@@ -91,15 +86,28 @@ module Make (A: OrderedType) = struct
         ) t1.vector t2.vector in
     { t1 with vector }
 
+  let compare t1 t2 =
+    let max = merge t1 t2 in
+    let is_max t =
+      HMap.for_all (fun h i ->
+          HMap.mem h t.vector && HMap.find h t.vector = i
+        ) max.vector in
+    let t1_is_max = is_max t1 in
+    let t2_is_max = is_max t2 in
+    if t1_is_max && t2_is_max then Some 0
+    else if t1_is_max then Some 1
+    else if t2_is_max then Some (-1)
+    else None
+
   let to_string t =
     if HMap.is_empty t.vector then "."
     else
       let b = Buffer.create 1024 in
-      Printf.bprintf b "{%s| " (A.to_string t.me);
+      Printf.bprintf b "[%s| " (A.to_string t.me);
       HMap.iter (fun h i ->
           Printf.bprintf b "%s:%d " (A.to_string h) i;
         ) t.vector;
-      Printf.bprintf b "}";
+      Printf.bprintf b "]";
       Buffer.contents b
 
   let fold f t i =
@@ -107,7 +115,7 @@ module Make (A: OrderedType) = struct
 
 end
 
-module String = Make(struct
+module StringActor = Make(struct
     type t = string
     let compare = String.compare
     let to_string x = x
