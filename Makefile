@@ -10,3 +10,6 @@ _obuild/crdt-test/crdt-test.asm: all
 
 test: _obuild/crdt-test/crdt-test.asm
 	OCAMLRUNPARAM=b _obuild/crdt-test/crdt-test.asm
+
+clean:
+	ocp-build clean
