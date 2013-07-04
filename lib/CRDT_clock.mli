@@ -47,4 +47,4 @@ module type S = sig
 end
 
 (** Vector clock builder *)
-module Make(A: ACTOR): S
+module Make(A: ACTOR): S with type actor = A.t

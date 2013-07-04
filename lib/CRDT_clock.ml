@@ -28,43 +28,60 @@ module Make (A: ACTOR) = struct
 
   module ActorMap = Map.Make(A)
 
-  type t = int ActorMap.t
+  type actor = A.t
 
-  let empty = ActorMap.empty
+  type t = {
+    me : A.t;
+    map: int ActorMap.t;
+  }
 
-  let is_empty = ActorMap.is_empty
+  let create me = {
+    me;
+    map = ActorMap.empty;
+  }
+
+  let chown t me =
+    { t with me }
+
+  let is_empty t = ActorMap.is_empty t.map
 
   let add t x =
     if x <= 0 then t
     else
       try
-        let i = ActorMap.find A.me t in
-        ActorMap.add A.me (i+x) (ActorMap.remove A.me t)
+        let i = ActorMap.find t.me t.map in
+        let map = ActorMap.add t.me (i+x) (ActorMap.remove t.me t.map) in
+        { t with map }
       with Not_found ->
-        ActorMap.add A.me x t
+        let map = ActorMap.add t.me x t.map in
+        { t with map }
 
   let incr t =
     add t 1
 
   let contents t =
-    try ActorMap.find A.me t
+    try ActorMap.find t.me t.map
     with Not_found -> 0
 
   let merge t1 t2 =
-    ActorMap.fold (fun h i1 t2 ->
-        try
-          let i2 = ActorMap.find h t2 in
-          ActorMap.add h (max i1 i2) (ActorMap.remove h t2)
-        with Not_found ->
-          ActorMap.add h i1 t2
-      ) t1 t2
+    if t1.me <> t2.me then raise Bad_owner
+    else
+      let map =
+        ActorMap.fold (fun h i1 t2 ->
+            try
+              let i2 = ActorMap.find h t2 in
+              ActorMap.add h (max i1 i2) (ActorMap.remove h t2)
+            with Not_found ->
+              ActorMap.add h i1 t2
+          ) t1.map t2.map in
+      { me = t1.me; map }
 
   let compare t1 t2 =
-    let max = merge t1 t2 in
+    let max = merge t1 { t2 with me = t1.me } in
     let is_max t =
       ActorMap.for_all (fun h i ->
-          ActorMap.mem h t && ActorMap.find h t = i
-        ) max in
+          ActorMap.mem h t.map && ActorMap.find h t.map = i
+        ) max.map in
     let t1_is_max = is_max t1 in
     let t2_is_max = is_max t2 in
     if t1_is_max && t2_is_max then Some 0
@@ -73,17 +90,17 @@ module Make (A: ACTOR) = struct
     else None
 
   let to_string t =
-    if ActorMap.is_empty t then "."
+    if ActorMap.is_empty t.map then "."
     else
       let b = Buffer.create 1024 in
-      Printf.bprintf b "[%s| " (A.to_string A.me);
+      Printf.bprintf b "[%s| " (A.to_string t.me);
       ActorMap.iter (fun h i ->
           Printf.bprintf b "%s:%d " (A.to_string h) i;
-        ) t;
+        ) t.map;
       Printf.bprintf b "]";
       Buffer.contents b
 
   let fold f t i =
-    ActorMap.fold (fun _ -> f) t i
+    ActorMap.fold (fun _ -> f) t.map i
 
 end

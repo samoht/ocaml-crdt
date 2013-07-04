@@ -31,17 +31,17 @@ module type ADD = sig
   (** Additive counters are mergeable *)
   include MERGEABLE with type contents = int
 
-  (** Add increments to a counter. Do nothing if the increment is
-      negative or null. *)
-  val add: t -> int -> t
-
   (** And they support only increment operations. *)
   val incr: t -> t
+
+  (** Add increments to a counter. Do nothing if the increment is
+      negative or null. *)
+  val incrn: t -> int -> t
 
 end
 
 (** Functor to build an additive counter. *)
-module Add(A: ACTOR): ADD
+module Add(A: ACTOR): ADD with type actor = A.t
 
 (** Proper counters support increment and decrement operations. They
     are implemented as two vector clocks, counting each operation
@@ -55,13 +55,10 @@ module type S = sig
   (** But they also support decrement operations. *)
   val decr: t -> t
 
-  (** The addition will work with the full range of integers. *)
-  val add: t -> int -> t
-
   (** Substraction. *)
-  val sub: t -> int -> t
+  val decrn: t -> int -> t
 
 end
 
 (** Build a counter from an abstract actor description. *)
-module Make(A: ACTOR): S
+module Make(A: ACTOR): S with type actor = A.t

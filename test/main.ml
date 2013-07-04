@@ -25,39 +25,26 @@ module MyString = struct
   let to_string x = x
 end
 
-module Foo = struct
-  include MyString
-  let me = "foo"
-end
-
-module Bar = struct
-  include MyString
-  let me = "bar"
-end
-
 module ClockTest = struct
 
   let name = "clock"
 
-  module Foo = CRDT.Clock.Make(Foo)
-  module Bar = CRDT.Clock.Make(Bar)
+  module M = CRDT.Clock.Make(MyString)
 
   let run () =
-    let foo = Foo.empty in
-    let bar = Bar.empty in
-    let foo1 = Foo.incr (Foo.incr foo) in
-    let bar1 = Bar.incr bar in
-    let foo2 = Foo.merge foo1 (Obj.magic bar1) in
-    let bar2 = Bar.incr (Bar.incr bar1) in
-    let bar3 = Bar.merge bar2 (Obj.magic foo2) in
-    let foo3 = Foo.merge foo2 (Obj.magic bar2) in
+    let foo = M.create "foo" in
+    let bar = M.create "bar" in
+    let foo1 = M.incr (M.incr foo) in
+    let bar1 = M.incr bar in
+    let foo2 = M.merge foo1 (M.chown bar1 "foo") in
+    let bar2 = M.incr (M.incr bar1) in
+    let bar3 = M.merge bar2 (M.chown foo2 "bar") in
+    let foo3 = M.merge foo2 (M.chown bar2 "foo") in
 
-    test name Foo.contents Foo.to_string int [
+    test name M.contents M.to_string int [
       ("foo1", foo1, 2);
       ("foo2", foo2, 2);
       ("foo3", foo3, 2);
-    ];
-    test name Bar.contents Bar.to_string int [
       ("bar1", bar1, 1);
       ("bar2", bar2, 3);
       ("bar3", bar3, 3);
@@ -69,24 +56,21 @@ module AddCounterTest = struct
 
   let name = "add-counter"
 
-  module Foo = CRDT.Counter.Add(Foo)
-  module Bar = CRDT.Counter.Add(Bar)
+  module M = CRDT.Counter.Add(MyString)
 
   let run () =
-    let foo = Foo.empty in
-    let bar = Bar.empty in
-    let foo1 = Foo.incr (Foo.incr foo) in
-    let bar1 = Bar.incr bar in
-    let foo2 = Foo.merge foo1 (Obj.magic bar1) in
-    let bar2 = Bar.incr (Bar.incr bar1) in
-    let foo3 = Foo.merge foo2 (Obj.magic bar2) in
-    let bar3 = Bar.merge bar2 (Obj.magic foo2) in
-    test name Foo.contents Foo.to_string int [
+    let foo = M.create "foo" in
+    let bar = M.create "bar" in
+    let foo1 = M.incr (M.incr foo) in
+    let bar1 = M.incr bar in
+    let foo2 = M.merge foo1 (M.chown bar1 "foo") in
+    let bar2 = M.incr (M.incr bar1) in
+    let foo3 = M.merge foo2 (M.chown bar2 "foo") in
+    let bar3 = M.merge bar2 (M.chown foo2 "bar") in
+    test name M.contents M.to_string int [
       ("foo1", foo1, 2);
       ("foo2", foo2, 3);
       ("foo3", foo3, 5);
-    ];
-    test name Bar.contents Bar.to_string int [
       ("bar1", bar1, 1);
       ("bar2", bar2, 3);
       ("bar3", bar3, 5);
@@ -98,24 +82,21 @@ module CounterTest = struct
 
   let name = "counter"
 
-  module Foo = CRDT.Counter.Make(Foo)
-  module Bar = CRDT.Counter.Make(Bar)
+  module M = CRDT.Counter.Make(MyString)
 
   let run () =
-    let foo = Foo.empty in
-    let bar = Bar.empty in
-    let foo1 = Foo.incr (Foo.incr foo) in
-    let bar1 = Bar.incr (Bar.incr (Bar.incr bar)) in
-    let foo2 = Foo.merge foo1 (Obj.magic bar1) in
-    let bar2 = Bar.decr (Bar.decr bar1) in
-    let foo3 = Foo.merge foo2 (Obj.magic bar2) in
-    let bar3 = Bar.merge bar2 (Obj.magic foo2) in
-    test name Foo.contents Foo.to_string int [
+    let foo = M.create "foo" in
+    let bar = M.create "bar" in
+    let foo1 = M.incr (M.incr foo) in
+    let bar1 = M.incr (M.incr (M.incr bar)) in
+    let foo2 = M.merge foo1 (M.chown bar1 "foo") in
+    let bar2 = M.decr (M.decr bar1) in
+    let foo3 = M.merge foo2 (M.chown bar2 "foo") in
+    let bar3 = M.merge bar2 (M.chown foo2 "bar") in
+    test name M.contents M.to_string int [
       ("foo1", foo1, 2);
       ("foo2", foo2, 5);
       ("foo3", foo3, 3);
-    ];
-    test name Bar.contents Bar.to_string int [
       ("bar1", bar1, 3);
       ("bar2", bar2, 1);
       ("bar3", bar3, 3);
@@ -132,27 +113,24 @@ module SetTest = struct
     let compare = (-)
     let to_string = string_of_int
   end
-  module Foo = CRDT.Set.Make(Foo)(MyInt)
-  module Bar = CRDT.Set.Make(Bar)(MyInt)
+  module M = CRDT.Set.Make(MyString)(MyInt)
 
   let run () =
-    let foo = Foo.empty in
-    let bar = Bar.empty in
-    let foo1 = Foo.add 2 (Foo.add 1 foo) in
-    let bar1 = Bar.add 2 (Bar.add 3 bar) in
-    let foo2 = Foo.merge foo1 (Obj.magic bar1) in
-    let bar2 = Bar.remove 2 bar1 in
-    let foo3 = Foo.remove 3 foo2 in
-    let bar3 = Bar.merge bar2 (Obj.magic foo2) in
-    let foo4 = Foo.merge foo3 (Obj.magic bar3) in
-    let bar4 = Bar.merge bar3 (Obj.magic foo3) in
-    test name Foo.elements Foo.to_string (list int) [
+    let foo = M.create "foo" in
+    let bar = M.create "bar" in
+    let foo1 = M.add 2 (M.add 1 foo) in
+    let bar1 = M.add 2 (M.add 3 bar) in
+    let foo2 = M.merge foo1 (M.chown bar1 "foo") in
+    let bar2 = M.remove 2 bar1 in
+    let foo3 = M.remove 3 foo2 in
+    let bar3 = M.merge bar2 (M.chown foo2 "bar") in
+    let foo4 = M.merge foo3 (M.chown bar3 "foo") in
+    let bar4 = M.merge bar3 (M.chown foo3 "bar") in
+    test name M.elements M.to_string (list int) [
       ("foo1", foo1, [1;2]);
       ("foo2", foo2, [1;2;3]);
       ("foo3", foo3, [1;2]);
       ("foo4", foo4, [1;2]);
-    ];
-    test name Bar.elements Bar.to_string (list int) [
       ("bar1", bar1, [2;3]);
       ("bar2", bar2, [3]);
       ("bar3", bar3, [1;2;3]);
@@ -165,8 +143,7 @@ module MapTest = struct
 
   let name = "map"
 
-  module Foo = CRDT.Map.Make(Foo)(MyString)(CounterTest.Foo)
-  module Bar = CRDT.Map.Make(Bar)(MyString)(CounterTest.Bar)
+  module M = CRDT.Map.Make(MyString)(MyString)(CounterTest.M)
 
   let run () =
     ()

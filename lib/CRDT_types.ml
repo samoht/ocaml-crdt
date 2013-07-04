@@ -25,7 +25,6 @@ end
 (** Abstract actors are comparable and have a default elements. *)
 module type ACTOR = sig
   include COMPARABLE
-  val me: t
 end
 
 module type MERGEABLE = sig
@@ -35,6 +34,16 @@ module type MERGEABLE = sig
 
   (** The type of contents stored in mergeable objects. *)
   type contents
+
+  (** The type of actors which can modify this object. *)
+  type actor
+
+  (** Create a new distributed object, that will be updated by the
+      given actor. *)
+  val create: actor -> t
+
+  (** Change the owner of a disributed object. *)
+  val chown: t -> actor ->  t
 
   (** Get the contents of an object. *)
   val contents: t -> contents
@@ -46,16 +55,12 @@ module type MERGEABLE = sig
       same actor, otherwise [Bad_owner] is raised. *)
   val merge: t -> t -> t
 
-  (** Create an empty object, owned by the given actor. *)
-  val empty: t
-
   (** Test wheter an object is actually empty and can be safely
       forgotten by the system. *)
   val is_empty: t -> bool
 
 end
 
-module ME = struct
-  type t = string
-  let compare = String.compare
-end
+(** Exception thrown when trying to merge two vector with different
+    owners. *)
+exception Bad_owner

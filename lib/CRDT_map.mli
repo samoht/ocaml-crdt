@@ -28,7 +28,6 @@ module type S = sig
 
   (** Partial implementation of the [Map.S] interface. TODO: implement
       the remaining functions. *)
-  val empty: t
   val is_empty: t -> bool
   val mem: key -> t -> bool
   val add: key -> value -> t -> t
@@ -36,4 +35,5 @@ module type S = sig
   val bindings: t -> (key * Value.contents) list
 end
 
-module Make (A: ACTOR) (Key: COMPARABLE) (Value: MERGEABLE): S
+module Make (A: ACTOR) (Key: COMPARABLE) (Value: MERGEABLE with type actor = A.t):
+  S with type actor = A.t

@@ -18,46 +18,72 @@ open CRDT_types
 
 module type ADD = sig
   include MERGEABLE with type contents = int
-  val add: t -> int -> t
   val incr: t -> t
+  val incrn: t -> int -> t
 end
 
-module Add(A: ACTOR): ADD = struct
+module Add(A: ACTOR) = struct
+
+  type actor = A.t
 
   module Clock = CRDT_clock.Make(A)
 
-  type t = Clock.t
+  type t = {
+    clock: Clock.t;
+    value: int;
+  }
 
   type contents = int
 
-  let fold = Clock.fold
+  let fold f t i = Clock.fold f t.clock i
 
-  let empty = Clock.empty
+  let create a = {
+    clock = Clock.create a;
+    value = 0;
+  }
 
-  let is_empty = Clock.is_empty
+  let incr t = {
+    clock = Clock.incr t.clock;
+    value = succ t.value;
+  }
 
-  let incr = Clock.incr
+  let incrn t i = {
+    clock = Clock.incr t.clock;
+    value = t.value + i;
+  }
 
-  let add = Clock.add
+  let value_of_clock clock =
+    Clock.fold (+) clock 0
 
-  let merge = Clock.merge
+  let merge t1 t2 =
+    let clock = Clock.merge t1.clock t2.clock in
+    let value = value_of_clock clock in
+    { clock; value }
 
   let contents t =
-    fold (+) t 0
+    t.value
 
   let to_string t =
-    string_of_int (contents t)
+    string_of_int t.value
+
+  let is_empty t =
+    t.value = 0
+
+  let chown t a =
+    let clock = Clock.chown t.clock a in
+    { t with clock }
 
 end
 
 module type S = sig
   include ADD
   val decr: t -> t
-  val add: t -> int -> t
-  val sub: t -> int -> t
+  val decrn: t -> int -> t
 end
 
-module Make(A: ACTOR): S = struct
+module Make(A: ACTOR) = struct
+
+  type actor = A.t
 
   module C = Add(A)
 
@@ -66,9 +92,9 @@ module Make(A: ACTOR): S = struct
     decr: C.t;
   }
 
-  let empty = {
-    incr = C.empty;
-    decr = C.empty;
+  let create a = {
+    incr = C.create a;
+    decr = C.create a;
   }
 
   type contents = int
@@ -97,19 +123,24 @@ module Make(A: ACTOR): S = struct
       (C.to_string t.incr)
       (C.to_string t.decr)
 
-  let add t i =
+  let incrn t i =
     if i = 0 then t
     else if i > 0 then
-      { t with incr = C.add t.incr i }
+      { t with incr = C.incrn t.incr i }
     else
-      { t with decr = C.add t.decr i }
+      { t with decr = C.incrn t.decr i }
 
-  let sub t i =
+  let decrn t i =
     if i = 0 then t
     else if i < 0 then
-      { t with incr = C.add t.incr i }
+      { t with incr = C.incrn t.incr i }
     else
-      { t with decr = C.add t.decr i }
+      { t with decr = C.incrn t.decr i }
 
+
+  let chown t a = {
+    incr = C.chown t.incr a;
+    decr = C.chown t.decr a;
+  }
 
 end

@@ -32,11 +32,9 @@ module type S = sig
 
   (** Distributed sets are sets. TODO: complete the partial
       implementation. *)
-  val empty: t
   val is_empty: t
   val mem: elt -> t -> bool
   val add: elt -> t -> t
-  val singleton: elt -> t
   val remove: elt -> t -> t
   val union: t -> t -> t
   val inter: t -> t -> t
@@ -55,3 +53,4 @@ end
 (** Functor to build a distributed set, from an abstract definition of
     actors and elements of that set. *)
 module Make(A: ACTOR)(Elt: COMPARABLE): S with type elt = Elt.t
+                                           and type actor = A.t

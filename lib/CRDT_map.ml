@@ -23,7 +23,6 @@ module type S = sig
   module Map: Map.S with type key := key
   type map = Value.contents Map.t
   include MERGEABLE with type contents := map
-  val empty: t
   val is_empty: t -> bool
   val mem: key -> t -> bool
   val add: key -> value -> t -> t
@@ -31,7 +30,10 @@ module type S = sig
   val bindings: t -> (key * Value.contents) list
 end
 
-module Make (A: ACTOR) (Key: COMPARABLE) (Value: MERGEABLE) = struct
+module Make (A: ACTOR) (Key: COMPARABLE) (Value: MERGEABLE with type actor = A.t) =
+struct
+
+  type actor = A.t
 
   module Value = Value
 
@@ -45,6 +47,7 @@ module Make (A: ACTOR) (Key: COMPARABLE) (Value: MERGEABLE) = struct
   type map = Value.contents Map.t
 
   type t = {
+    me : actor;
     set: S.t;
     map: value Map.t;
   }
@@ -57,9 +60,10 @@ module Make (A: ACTOR) (Key: COMPARABLE) (Value: MERGEABLE) = struct
           map
       ) t.map Map.empty
 
-  let empty = {
-    set = S.empty;
+  let create me = {
+    me;
     map = Map.empty;
+    set = S.create me;
   }
 
   let is_empty t =
@@ -68,6 +72,7 @@ module Make (A: ACTOR) (Key: COMPARABLE) (Value: MERGEABLE) = struct
   let mem key t =
     S.mem key t.set
 
+  (* XXX *)
   let add key value t =
     let set = S.add key t.set in
     let map =
@@ -76,19 +81,19 @@ module Make (A: ACTOR) (Key: COMPARABLE) (Value: MERGEABLE) = struct
         Map.add key (Value.merge value v) (Map.remove key t.map)
       with Not_found ->
         Map.add key value t.map in
-    { set; map }
+    { t with set; map }
 
   let remove key t =
     if S.mem key t.set then
       let set = S.remove key t.set in
       let map = Map.remove key t.map in
-      { set; map }
+      { t with set; map }
     else
       t
 
   let to_string t =
     let b = Buffer.create 1024 in
-    Printf.bprintf b "{%s| " (A.to_string A.me);
+    Printf.bprintf b "{%s| " (A.to_string t.me);
     Map.iter (fun key value ->
         let set = if S.mem key t.set then "" else "*" in
         Printf.bprintf b "%s%s:%s " (Key.to_string key) set (Value.to_string value);
@@ -96,6 +101,7 @@ module Make (A: ACTOR) (Key: COMPARABLE) (Value: MERGEABLE) = struct
     Printf.bprintf b "}";
     Buffer.contents b
 
+  (* XXX *)
   let merge t1 t2 =
     let set = S.merge t1.set t2.set in
     let map = Map.fold (fun key v1 m2 ->
@@ -108,9 +114,15 @@ module Make (A: ACTOR) (Key: COMPARABLE) (Value: MERGEABLE) = struct
           with Not_found ->
             Map.add key v1 m2
       ) t1.map t2.map in
-    { set; map }
+    { t1 with set; map }
 
   let bindings t =
     Map.bindings (contents t)
+
+  let chown t me = {
+    me;
+    set = S.chown t.set me;
+    map = Map.map (fun v -> Value.chown v me) t.map;
+  }
 
 end
