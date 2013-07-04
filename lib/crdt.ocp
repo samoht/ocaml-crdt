@@ -7,5 +7,4 @@ begin library "crdt"
     "CRDT_map.ml"
     "CRDT.ml"
   ]
-  requires = [ "core" ]
 end
