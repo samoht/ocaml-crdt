@@ -42,7 +42,16 @@ module type S = sig
   val compare: t -> t -> int option
 
   (** Fold over the component of the clock. *)
-  val fold: (int -> 'a -> 'a) -> t -> 'a -> 'a
+  val fold: t -> (actor -> int -> 'a -> 'a) -> 'a -> 'a
+
+  (** Remove elements which do not validate the filet. *)
+  val filter: t -> (actor -> int -> bool) -> t
+
+  (** Check whether an actor has already updated the clock. *)
+  val mem: t -> actor -> bool
+
+  (** Find the value associated to a given actor. *)
+  val find: t -> actor -> int
 
 end
 

@@ -20,6 +20,10 @@ module type ADD = sig
   include MERGEABLE with type contents = int
   val incr: t -> t
   val incrn: t -> int -> t
+  type clock
+  val to_clock: t -> clock
+  val of_clock: clock -> t
+  module Clock: CRDT_clock.S with type actor := actor and type t := clock
 end
 
 module Add(A: ACTOR) = struct
@@ -28,14 +32,16 @@ module Add(A: ACTOR) = struct
 
   module Clock = CRDT_clock.Make(A)
 
+  type clock = Clock.t
+
   type t = {
     clock: Clock.t;
     value: int;
   }
 
-  type contents = int
+  let to_clock t = t.clock
 
-  let fold f t i = Clock.fold f t.clock i
+  type contents = int
 
   let create a = {
     clock = Clock.create a;
@@ -53,7 +59,11 @@ module Add(A: ACTOR) = struct
   }
 
   let value_of_clock clock =
-    Clock.fold (+) clock 0
+    Clock.fold clock (fun _ -> (+)) 0
+
+  let of_clock clock =
+    let value = value_of_clock clock in
+    { value; clock }
 
   let merge t1 t2 =
     let clock = Clock.merge t1.clock t2.clock in
@@ -76,9 +86,12 @@ module Add(A: ACTOR) = struct
 end
 
 module type S = sig
-  include ADD
+  include MERGEABLE with type contents = int
+  val incr: t -> t
+  val incrn: t -> int -> t
   val decr: t -> t
   val decrn: t -> int -> t
+  val normalize: t -> t
 end
 
 module Make(A: ACTOR) = struct
@@ -113,9 +126,25 @@ module Make(A: ACTOR) = struct
   let is_empty t =
     contents t = 0
 
+  let normalize t =
+    let incr = C.to_clock t.incr in
+    let decr = C.to_clock t.decr in
+    let incr = C.Clock.filter incr (fun a i ->
+        C.Clock.mem decr a && C.Clock.find decr a <> i
+      ) in
+    let decr = C.Clock.filter decr (fun a i ->
+        C.Clock.mem incr a && C.Clock.find incr a <> i
+      ) in
+    let incr = C.of_clock incr in
+    let decr = C.of_clock decr in
+    { incr; decr }
+
   let merge t1 t2 =
-    { incr = C.merge t1.incr t2.incr;
-      decr = C.merge t1.decr t2.decr; }
+    let t = {
+      incr = C.merge t1.incr t2.incr;
+      decr = C.merge t1.decr t2.decr;
+    } in
+    normalize t
 
   let to_string t =
     Printf.sprintf "[%d|%s|%s]"

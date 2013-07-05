@@ -21,7 +21,10 @@ module type S = sig
   val incr: t -> t
   val add: t -> int -> t
   val compare: t -> t -> int option
-  val fold: (int -> 'a -> 'a) -> t -> 'a -> 'a
+  val fold: t -> (actor -> int ->  'a -> 'a) -> 'a -> 'a
+  val filter: t -> (actor -> int -> bool) -> t
+  val mem: t -> actor -> bool
+  val find: t -> actor -> int
 end
 
 module Make (A: ACTOR) = struct
@@ -100,7 +103,16 @@ module Make (A: ACTOR) = struct
       Printf.bprintf b "]";
       Buffer.contents b
 
-  let fold f t i =
-    ActorMap.fold (fun _ -> f) t.map i
+  let fold t f i =
+    ActorMap.fold f t.map i
+
+  let filter t f =
+    { t with map = ActorMap.filter f t.map }
+
+  let mem t a =
+    ActorMap.mem a t.map
+
+  let find t a =
+    ActorMap.find a t.map
 
 end

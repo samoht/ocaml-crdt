@@ -31,12 +31,24 @@ module type ADD = sig
   (** Additive counters are mergeable *)
   include MERGEABLE with type contents = int
 
-  (** And they support only increment operations. *)
+   (** And they support only increment operations. *)
   val incr: t -> t
 
   (** Add increments to a counter. Do nothing if the increment is
       negative or null. *)
   val incrn: t -> int -> t
+
+  (** Additive counter can be casted from and to vector clocks. *)
+  type clock
+
+  (** Convert a counter to a clock. *)
+  val to_clock: t -> clock
+
+  (** Convert a clock to a counter. *)
+  val of_clock: clock -> t
+
+  (** A counter can be viewed as a clock. *)
+  module Clock: CRDT_clock.S with type actor := actor and type t := clock
 
 end
 
@@ -49,14 +61,24 @@ module Add(A: ACTOR): ADD with type actor = A.t
     global increments and the global decrements. *)
 module type S = sig
 
-  (** Proper counters are a generalization of additive counters. *)
-  include ADD
+  (** Counters are mergeable *)
+  include MERGEABLE with type contents = int
+
+   (** They support increment operations. *)
+  val incr: t -> t
+
+  (** Add increments to a counter. Do nothing if the increment is
+      negative or null. *)
+  val incrn: t -> int -> t
 
   (** But they also support decrement operations. *)
   val decr: t -> t
 
   (** Substraction. *)
   val decrn: t -> int -> t
+
+  (** Normalization: remove all zero counters *)
+  val normalize: t -> t
 
 end
 
